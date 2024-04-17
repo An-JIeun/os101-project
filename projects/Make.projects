@@ -1,3 +1,0 @@
-# -*- makefile -*- for CAU15841 projects 
-
-include $(patsubst %,$(SRCDIR)/%/Make.projects,$(PROJECT_SUBDIRS))
