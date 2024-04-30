@@ -17,3 +17,9 @@ then path is changed to ~/github/pintos/threads
 cd build
 ../utils/pintos automated_warehouse 2 1A:3B // for example
 ```
+- to use git
+```
+git add *
+git commit -m "anywords"
+git push
+``
