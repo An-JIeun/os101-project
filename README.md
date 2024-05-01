@@ -22,4 +22,10 @@ cd build
 git add *
 git commit -m "anywords"
 git push
-``
+```
+
+- thread.c
+```c
+thread_create (const char *name, int priority,
+               thread_func *function, void *aux) 
+```
