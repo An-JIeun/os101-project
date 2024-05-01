@@ -29,3 +29,8 @@ git push
 thread_create (const char *name, int priority,
                thread_func *function, void *aux) 
 ```
+
+- robot struct parameters
+```c
+setRobot(struct robot* _robot, const char* name, int row, int col, int required_payload, int current_payload)
+```

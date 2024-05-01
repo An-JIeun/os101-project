@@ -27,6 +27,7 @@ void test_thread(void* aux){
         int test = 0;
         while(1){
                 printf("thread %d : %d\n", idx, test++);
+                printf("fuxxxx");
                 thread_sleep(idx * 1000);
         }
 }
@@ -38,20 +39,41 @@ void run_automated_warehouse(char **argv)
 
         printf("implement automated warehouse!\n");
 
+        // modified code >> parsing input arguments
+        const int robot_num = argv[1];
+        printf("Number of Robots : %d",robot_num);
+
+        robots = malloc(sizeof(struct robot) * robot_num);        
+        // modified code >> parse the locations where robots get cargos and transfer to
+        char* input_s =  strtok(argv[2], ":");
+        int robot_index = 0; // index increamented in while loop
+        char * robot_name; // name of robot, e.g. "R1"
+        while(input_s != NULL){
+
+                char *parsed_data = input_s;
+                int req_payload = atoi(parsed_data[0]);
+                sprintf(robot_index, "R%d",robot_index);
+                setRobot(&robots[robot_index], 5,6, robot_name, req_payload, 0);
+                input_s = strtok(NULL,":");
+                robot_index++;
+        }
+
+
+
         // test case robots
-        robots = malloc(sizeof(struct robot) * 4);
-        setRobot(&robots[0], "R1", 5, 5, 0, 0);
-        setRobot(&robots[1], "R2", 0, 2, 0, 0);
-        setRobot(&robots[2], "R3", 1, 1, 1, 1);
-        setRobot(&robots[3], "R4", 5, 5, 0, 0);
+        //robots = malloc(sizeof(struct robot) * 4);
+        //setRobot(&robots[0], "R1", 5, 5, 0, 0);
+        //setRobot(&robots[1], "R2", 0, 2, 0, 0);
+        //setRobot(&robots[2], "R3", 1, 1, 1, 1);
+        //setRobot(&robots[3], "R4", 5, 5, 0, 0);
 
         // example of create thread
-        tid_t* threads = malloc(sizeof(tid_t) * 4);
-        int idxs[4] = {1, 2, 3, 4};
-        threads[0] = thread_create("CNT", 0, &test_cnt, NULL);
-        threads[1] = thread_create("R1", 0, &test_thread, &idxs[1]);
-        threads[2] = thread_create("R2", 0, &test_thread, &idxs[2]);
-        threads[3] = thread_create("R3", 0, &test_thread, &idxs[3]);
+        //tid_t* threads = malloc(sizeof(tid_t) * 4);
+        //int idxs[4] = {1, 2, 3, 4};
+        //threads[0] = thread_create("CNT", 0, &test_cnt, NULL);
+        //threads[1] = thread_create("R1", 0, &test_thread, &idxs[1]);
+        //threads[2] = thread_create("R2", 0, &test_thread, &idxs[2]);
+        //threads[3] = thread_create("R3", 0, &test_thread, &idxs[3]);
 
         // if you want, you can use main thread as a central control node
         
