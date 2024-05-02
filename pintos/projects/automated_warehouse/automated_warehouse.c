@@ -40,10 +40,21 @@ void run_automated_warehouse(char **argv)
         printf("implement automated warehouse!\n");
 
         // modified code >> parsing input arguments
-        const int robot_num = argv[1];
+        int robot_num = argv[1];
         printf("Number of Robots : %d",robot_num);
 
-        robots = malloc(sizeof(struct robot) * robot_num);        
+        // define central robot
+        robots = malloc(sizeof(struct robot) * robot_num+1);
+        setRobot(&robots[0], 5,6, "RO", 0, 0); // central robot
+
+        // define thread index list
+        int idxs[robot_num+1];
+        idxs[0] = 0;
+
+        // create threads list
+        tid_t* threads = malloc(sizeof(tid_t) * robot_num+1);
+        threads[0] = thread_create("CNT", 0, &test_cnt, NULL);
+        
         // modified code >> parse the locations where robots get cargos and transfer to
         char* input_s =  strtok(argv[2], ":");
         int robot_index = 0; // index increamented in while loop
@@ -52,20 +63,15 @@ void run_automated_warehouse(char **argv)
 
                 char *parsed_data = input_s;
                 int req_payload = atoi(parsed_data[0]);
-                sprintf(robot_index, "R%d",robot_index);
-                setRobot(&robots[robot_index], 5,6, robot_name, req_payload, 0);
+                idxs[robot_index+1] = robot_index+1;
+                
+                sprintf(robot_name, "R%d",robot_index+1);
+                threads[robot_index+1] = thread_create(robot_name, 0, &test_thread, &idxs[robot_index+1]);
+                setRobot(&robots[robot_index+1], 5,6, robot_name, req_payload, 0);
                 input_s = strtok(NULL,":");
                 robot_index++;
         }
 
-
-
-        // test case robots
-        //robots = malloc(sizeof(struct robot) * 4);
-        //setRobot(&robots[0], "R1", 5, 5, 0, 0);
-        //setRobot(&robots[1], "R2", 0, 2, 0, 0);
-        //setRobot(&robots[2], "R3", 1, 1, 1, 1);
-        //setRobot(&robots[3], "R4", 5, 5, 0, 0);
 
         // example of create thread
         //tid_t* threads = malloc(sizeof(tid_t) * 4);
