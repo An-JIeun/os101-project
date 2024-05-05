@@ -26,9 +26,10 @@ void test_thread(void* aux){
         int idx = *((int *)aux);
         int test = 0;
         while(1){
-                printf("thread %d : %d\n", idx, test++);
-                printf("fuxxxx");
+                printf("\nthread %d : %d\n", idx, test++);
+                printf("\nfuxxxx\n");
                 thread_sleep(idx * 1000);
+                printf("\nsleep end\n");
         }
 }
 
@@ -40,7 +41,7 @@ void run_automated_warehouse(char **argv)
         printf("implement automated warehouse!\n");
 
         // modified code >> parsing input arguments
-        int robot_num = argv[1];
+        int robot_num = atoi(argv[1]);
         printf("Number of Robots : %d",robot_num);
 
         // define central robot
@@ -56,7 +57,8 @@ void run_automated_warehouse(char **argv)
         threads[0] = thread_create("CNT", 0, &test_cnt, NULL);
         
         // modified code >> parse the locations where robots get cargos and transfer to
-        char* input_s =  strtok(argv[2], ":");
+        char* input_s;
+        strtok_r(argv[2], input_s,":");
         int robot_index = 0; // index increamented in while loop
         char * robot_name; // name of robot, e.g. "R1"
         while(input_s != NULL){
@@ -65,10 +67,10 @@ void run_automated_warehouse(char **argv)
                 int req_payload = atoi(parsed_data[0]);
                 idxs[robot_index+1] = robot_index+1;
                 
-                sprintf(robot_name, "R%d",robot_index+1);
+                snprintf(robot_name, "R%d",robot_index+1);
                 threads[robot_index+1] = thread_create(robot_name, 0, &test_thread, &idxs[robot_index+1]);
                 setRobot(&robots[robot_index+1], 5,6, robot_name, req_payload, 0);
-                input_s = strtok(NULL,":");
+                strtok_r(NULL,":",input_s);
                 robot_index++;
         }
 
