@@ -1,4 +1,5 @@
 #include "projects/automated_warehouse/aw_message.h"
+
 void setMailbox(int idx, int bit, int cmd, int row, int col, int cur_payload, int req_payload){
         boxes_from_robots[idx].dirtyBit = bit;
         boxes_from_robots[idx].msg.cmd = cmd;

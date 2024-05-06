@@ -9,4 +9,8 @@ threads/init.o: ../../threads/init.c ../../threads/init.h \
  ../../threads/interrupt.h ../../threads/io.h ../../threads/loader.h \
  ../../threads/malloc.h ../../threads/palloc.h ../../threads/pte.h \
  ../../threads/vaddr.h ../../threads/thread.h ../../lib/kernel/list.h \
- ../../projects/automated_warehouse/automated_warehouse.h
+ ../../projects/automated_warehouse/automated_warehouse.h \
+ ../../threads/synch.h ../../projects/automated_warehouse/aw_manager.h \
+ ../../projects/automated_warehouse/robot.h \
+ ../../projects/automated_warehouse/aw_thread.h \
+ ../../projects/automated_warehouse/aw_message.h

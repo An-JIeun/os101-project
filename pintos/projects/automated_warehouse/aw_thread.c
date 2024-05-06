@@ -33,6 +33,25 @@ void block_thread(){
  * A function unblocking all blocked threads in "blocked_threads" 
  * It must be called by central control thread
  */
+
 void unblock_threads(){
-    // you must implement this
+    // Disable interrupts to ensure atomicity
+    enum intr_level old_level;
+    old_level = intr_disable ();
+    
+    // Acquire lock to access the blocked threads list
+    lock_acquire(&blocked_threads);
+    
+    // Iterate through the blocked threads list and unblock each thread
+    while (!list_empty(&blocked_threads)) {
+        struct list_elem *e = list_pop_front(&blocked_threads);
+        struct thread *t = list_entry(e, struct thread, elem);
+        thread_unblock(t);
+    }
+    
+    // Release lock
+    lock_release(&blocked_threads);
+    
+    // Enable interrupts
+    intr_set_level (old_level);
 }
