@@ -22,8 +22,11 @@ void test_cnt(){
 }
 
 // test code for robot thread
-void test_thread(void* aux){
+
+void *test_thread(void* aux){
         int idx = *((int *)aux);
+        
+        printf("thread index : %d\n",idx);
         int test = 0;
         while(1){
                 printf("\nthread %d : %d\n", idx, test++);
@@ -42,7 +45,7 @@ void run_automated_warehouse(char **argv)
 
         // modified code >> parsing input arguments
         int robot_num = atoi(argv[1]);
-        printf("Number of Robots : %d",robot_num);
+        printf("Number of Robots : %d\n",robot_num);
 
         // define central robot
         robots = malloc(sizeof(struct robot) * robot_num+1);
@@ -54,25 +57,37 @@ void run_automated_warehouse(char **argv)
 
         // create threads list
         tid_t* threads = malloc(sizeof(tid_t) * robot_num+1);
-        threads[0] = thread_create("CNT", 0, &test_cnt, NULL);
+       
         
         // modified code >> parse the locations where robots get cargos and transfer to
         char* input_s;
-        strtok_r(argv[2], input_s,":");
+        char* next_tok;
+        input_s = strtok_r(argv[2],":", &next_tok);
         int robot_index = 0; // index increamented in while loop
-        char * robot_name; // name of robot, e.g. "R1"
+        
+         // name of robot, e.g. "R1"
         while(input_s != NULL){
 
-                char *parsed_data = input_s;
-                int req_payload = atoi(parsed_data[0]);
-                idxs[robot_index+1] = robot_index+1;
-                
-                snprintf(robot_name, "R%d",robot_index+1);
-                threads[robot_index+1] = thread_create(robot_name, 0, &test_thread, &idxs[robot_index+1]);
-                setRobot(&robots[robot_index+1], 5,6, robot_name, req_payload, 0);
-                strtok_r(NULL,":",input_s);
-                robot_index++;
+                while(robot_index < robot_num){
+                        printf("\nnow index : %d\n",robot_index+1);
+                        char * robot_name = malloc(10);
+                        char *parsed_data = input_s;
+                        int req_payload = atoi(&parsed_data[0]);
+                        int *thread_idx = malloc(sizeof(int));
+                        
+                        idxs[robot_index+1] = robot_index+1;
+                        *thread_idx = idxs[robot_index + 1];
+
+                        snprintf(robot_name, 10, "R%d\n",robot_index+1);
+                        threads[robot_index+1] = thread_create(robot_name, 0, &test_thread, (void *)thread_idx); 
+                        setRobot(&robots[robot_index+1], 5,6, robot_name, req_payload, 0);
+        
+                        input_s = strtok_r(NULL, ":", &next_tok);
+                        robot_index++;
+                }
+
         }
+         threads[0] = thread_create("CNT", 0, &test_cnt, NULL);
 
 
         // example of create thread
