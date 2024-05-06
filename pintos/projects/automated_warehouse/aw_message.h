@@ -41,5 +41,5 @@ struct messsage_box {
 extern struct messsage_box* boxes_from_central_control_node;
 /** message boxes from robots to central control node */
 extern struct messsage_box* boxes_from_robots;
-
+void setMailbox(int idx, int bit, int cmd, int row, int col, int cur_payload, int req_payload);
 #endif
