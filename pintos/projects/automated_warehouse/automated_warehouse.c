@@ -242,17 +242,18 @@ void movingRobot(struct robot* _robot, int targ_row, int targ_col){
                     int updated = curr--;
                     setMailbox(mailboxNumber, 0, 1, updated, _robot->col,_robot->current_payload, _robot->required_payload);
                     thread_sleep(500);
-                    if (boxes_from_central_control_node[mailboxNumber].msg == 1){
+
+                    if (&boxes_from_central_control_node[mailboxNumber].msg == 1){
                         _robot->row = updated;
                         int now_loc = payload_loc_mapper(updated,_robot->col);
                         if (now_loc == _robot->required_payload){
-                            setRobot(_robot, updated, _robot->col, _robot->name, _robot->required_payload, _robot->required_payload);
+                            setRobot(_robot, updated, mailboxNumber+1,_robot->col, _robot->name, _robot->required_payload, _robot->required_payload);
                         }
                         else{
-                            setRobot(_robot, updated, _robot->col, _robot->name, _robot->required_payload, _robot->current_payload);
+                            setRobot(_robot, updated,mailboxNumber+1,_robot->col, _robot->name, _robot->required_payload, _robot->current_payload);
                         }
                     }
-                    else if (boxes_from_central_control_node[mailboxNumber].msg == 0){
+                    else if (&boxes_from_central_control_node[mailboxNumber].msg == 0){
                         block_thread();
                     }
                     
