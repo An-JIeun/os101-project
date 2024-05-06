@@ -22,8 +22,10 @@ struct message {
     // To robots
     //
     /** next command for robot */
-    int cmd;
+    int cmd; // 0 : stop, 1 : move
 };
+
+
 
 /** 
  * Simple message box which can receive only one message from sender
