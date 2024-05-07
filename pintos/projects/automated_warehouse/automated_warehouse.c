@@ -223,22 +223,24 @@ void run_automated_warehouse(char **argv)
 
 //function for cetal robot
 void centralControl(){
+        
     
-    while(1){
-    boxes_from_central_control_node = boxes_from_robots;
-    int size = sizeof(boxes_from_robots);
-    printf("\n<< initial robot >>\n");
-    //unblock_threads();
-    while (true) {
-        struct thread *current_thread = thread_current();
-         //unblock_threads();
-        if (current_thread == NULL) {
-                printf("No thread is currently running. Starting a new thread...\n");
-                unblock_threads();
-        }
+     while (true) {
+        // Iterate through the blocked threads list and unblock each thread
+        while (!list_empty(&blocked_threads)) {
+            struct list_elem *e = list_pop_front(&blocked_threads);
+            struct thread *t = list_entry(e, struct thread, elem);
+            lock_acquire(&filesys_lock);
+        printf("==CENTRAL locked==\n");
+     
+        lock_release(&filesys_lock);
+        printf("==CENTRAL unLocked==\n");
+            thread_unblock(t);
+            //unblock_threads();
         }
     }
     }
+
 
     
     
@@ -258,8 +260,9 @@ void movingRobot(struct robot* _robot){
     int mailboxNumber = _robot->idx;
     int direction;
     printf("Now Thread %d | Target Row : %d | Target Column : %d\n", mailboxNumber, targ_row, targ_col );
-    lock_acquire(&filesys_lock);
-    
+    //lock_acquire(&filesys_lock);
+    _robot->moving=1;
+    boxes_from_central_control_node[mailboxNumber].msg.cmd = 1;
 
     while (true){
         if (_robot->col == targ_col && _robot->row == targ_row){
@@ -272,7 +275,8 @@ void movingRobot(struct robot* _robot){
                 printf("THREAD BLOCK >> \n");
                 block_thread();
                 thread_yield();
-                unblock_threads();
+                //unblock_threads();
+                break;
         }
        
         direction = random()%4;
@@ -291,11 +295,9 @@ void movingRobot(struct robot* _robot){
                     printf("now cmd : %d\n",boxes_from_central_control_node[mailboxNumber].msg.cmd);
                     if (boxes_from_central_control_node[mailboxNumber].msg.cmd == 0){
                     printf("LOCKED\n");
-                    lock_acquire(&filesys_lock);
-                    while(boxes_from_central_control_node[mailboxNumber].msg.cmd != 1){
-                        cond_wait(&value_updated, &filesys_lock);
-                        }
-                        lock_release(&filesys_lock);}
+                    _robot->moving = 0;
+                    break;
+                    }
                     while(1){
                     
                         if (boxes_from_central_control_node[mailboxNumber].msg.cmd == 1){
@@ -310,7 +312,7 @@ void movingRobot(struct robot* _robot){
                                        break;
                         
                                 }
-                                
+                                _robot->moving=0;
                                 boxes_from_central_control_node[mailboxNumber].msg.cmd = 0;
                                 break;
                                 //block_thread();
@@ -343,11 +345,8 @@ void movingRobot(struct robot* _robot){
                     printf("now cmd : %d\n",boxes_from_central_control_node[mailboxNumber].msg.cmd);
                     if (boxes_from_central_control_node[mailboxNumber].msg.cmd == 0){
                     printf("LOCKED\n");
-                    lock_acquire(&filesys_lock);
-                    while(boxes_from_central_control_node[mailboxNumber].msg.cmd != 1){
-                        cond_wait(&value_updated, &filesys_lock);
-                        }
-                        lock_release(&filesys_lock);}
+                    _robot->moving = 0;
+                    break;}
                     while(1){
                         
                         if (boxes_from_central_control_node[mailboxNumber].msg.cmd == 1){
@@ -363,7 +362,7 @@ void movingRobot(struct robot* _robot){
                         
                                 }
                                
-                                
+                                _robot->moving=0;                                
                                 boxes_from_central_control_node[mailboxNumber].msg.cmd = 0;
                                 break;
                         }
@@ -395,11 +394,9 @@ void movingRobot(struct robot* _robot){
                     printf("now cmd : %d\n",boxes_from_central_control_node[mailboxNumber].msg.cmd);
                     if (boxes_from_central_control_node[mailboxNumber].msg.cmd == 0){
                     printf("LOCKED\n");
-                    lock_acquire(&filesys_lock);
-                    while(boxes_from_central_control_node[mailboxNumber].msg.cmd != 1){
-                        cond_wait(&value_updated, &filesys_lock);
-                        }
-                        lock_release(&filesys_lock);}
+                    _robot->moving = 0;
+                    break;
+                    }
                     while(1){
                        
                         if (boxes_from_central_control_node[mailboxNumber].msg.cmd == 1){
@@ -415,7 +412,7 @@ void movingRobot(struct robot* _robot){
                                         break;
                                 }
                                 
-                              
+                                _robot->moving=0;
                                 boxes_from_central_control_node[mailboxNumber].msg.cmd = 0;
                                 break;
                         }
@@ -448,11 +445,8 @@ void movingRobot(struct robot* _robot){
                     printf("now cmd : %d\n",boxes_from_central_control_node[mailboxNumber].msg.cmd);
                     if (boxes_from_central_control_node[mailboxNumber].msg.cmd == 0){
                     printf("LOCKED\n");
-                    lock_acquire(&filesys_lock);
-                    while(boxes_from_central_control_node[mailboxNumber].msg.cmd != 1){
-                        cond_wait(&value_updated, &filesys_lock);
-                        }
-                        lock_release(&filesys_lock);}
+                    _robot->moving = 0;
+                    break;}
                     while(1){
                         
                         if (boxes_from_central_control_node[mailboxNumber].msg.cmd == 1){
@@ -467,7 +461,7 @@ void movingRobot(struct robot* _robot){
                                         break;
                         
                                 }
-                                
+                                _robot->moving=0;
                                 boxes_from_central_control_node[mailboxNumber].msg.cmd = 0;
                                 
                                 break;
