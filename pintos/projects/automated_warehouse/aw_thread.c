@@ -1,4 +1,5 @@
 #include "projects/automated_warehouse/aw_thread.h"
+#include "projects/automated_warehouse/automated_warehouse.h"
 #include "threads/malloc.h"
 
 //
@@ -47,7 +48,7 @@ void unblock_threads(){
     old_level = intr_disable ();
     
     // Acquire lock to access the blocked threads list
-    lock_acquire(&blocked_threads);
+    lock_acquire(&filesys_lock);
     
     // Iterate through the blocked threads list and unblock each thread
     while (!list_empty(&blocked_threads)) {
@@ -57,7 +58,7 @@ void unblock_threads(){
     }
     
     // Release lock
-    lock_release(&blocked_threads);
+    lock_release(&filesys_lock);
     
     // Enable interrupts
     intr_set_level (old_level);

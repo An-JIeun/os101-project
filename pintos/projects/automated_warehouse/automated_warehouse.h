@@ -13,7 +13,7 @@
 #include "projects/automated_warehouse/robot.h"
 #include "projects/automated_warehouse/aw_thread.h"
 extern struct robot* robots;
-struct lock filesys_lock;
+extern struct lock filesys_lock;
 extern struct messsage_box* boxes_from_central_control_node;
 extern struct messsage_box* boxes_from_robots;
 void run_automated_warehouse(char **argv);
