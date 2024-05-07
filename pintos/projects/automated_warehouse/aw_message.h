@@ -9,6 +9,7 @@ struct message {
     //
     // To central control node
     //
+   
     /** current row of robot */
     int row;
     /** current column of robot */
@@ -35,6 +36,7 @@ struct messsage_box {
     int dirtyBit;
     /** stored message */
     struct message msg;
+    int idx;
 };
 
 /** message boxes from central control node to each robot */

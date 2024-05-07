@@ -1,4 +1,5 @@
 #include "projects/automated_warehouse/aw_thread.h"
+#include "threads/malloc.h"
 
 //
 // You need to read carefully thread/synch.h and thread/synch.c
@@ -12,19 +13,25 @@
 // Then you can also implement unblocking thread.
 //
 
-
-struct list blocked_threads;
-
+//extern struct list blocked_threads;
+  
 /**
  * A function unblocking all blocked threads in "blocked_threads" 
  * It must be called by robot threads
  */
+
+
+
+extern struct list* blocked_threads;
+
 void block_thread(){
     // You must implement this
-
+    
     // Code below is example
     enum intr_level old_level;
     old_level = intr_disable ();
+    struct thread *cur = thread_current();
+    list_push_back(&blocked_threads, &cur->elem);
     thread_block ();
     intr_set_level (old_level);
 }

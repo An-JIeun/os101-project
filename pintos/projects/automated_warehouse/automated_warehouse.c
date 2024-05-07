@@ -12,10 +12,11 @@
 #include "projects/automated_warehouse/aw_message.h"
 #include "projects/automated_warehouse/robot.h"
 #include "projects/automated_warehouse/aw_thread.h"
-
+struct condition value_updated;
 struct robot *robots;
 struct messsage_box *boxes_from_central_control_node;
 struct messsage_box *boxes_from_robots;
+struct list * blocked_threads;
 void *test_cnt(void* aux){
         lock_acquire(&filesys_lock);
         // Critical section
@@ -136,8 +137,10 @@ int * payload_loc_mapper_r(int p_num){
 void run_automated_warehouse(char **argv)
 {
         init_automated_warehouse(argv); // do not remove this
-        
+        //list_init(blocked_threads);
         lock_init(&filesys_lock);
+        cond_init(&value_updated);
+        //init_list(&blocked_threads);
         //lock_acquire(&filesys_lock);
         //lock_release(&filesys_lock);
         printf("implement automated warehouse!\n");
@@ -158,6 +161,7 @@ void run_automated_warehouse(char **argv)
         tid_t* threads = malloc(sizeof(tid_t) * robot_num+1);
         boxes_from_central_control_node = malloc(sizeof(struct messsage_box) * robot_num+1);
         boxes_from_robots= malloc(sizeof(struct messsage_box) * robot_num+1);
+        
         //struct robot* robots;
         // modified code >> parse the locations where robots get cargos and transfer to
         char* input_s;
@@ -173,7 +177,7 @@ void run_automated_warehouse(char **argv)
                         char * robot_name = malloc(10);
                         char *parsed_data = input_s;
                         int req_payload = atoi(&parsed_data[0]);
-                        char targ_p = &parsed_data[1];
+                        char targ_p = parsed_data[1];
                         int *thread_idx = malloc(sizeof(int));
                         
                         idxs[robot_index+1] = robot_index+1;
@@ -182,6 +186,7 @@ void run_automated_warehouse(char **argv)
                         snprintf(robot_name, 10, "R%d\n",robot_index+1);
                      
                         setRobot(&robots[robot_index+1],robot_name,robot_index+1, 5,6, req_payload, 0);
+                        printf("TARGET POINT : %c | REQ PAYLOAD : %d\n", targ_p, req_payload);
                         targ_point(targ_p, &robots[robot_index+1]);
                         threads[robot_index+1] = thread_create(robot_name, 0, &test_thread, &robots[robot_index+1]); 
                         
@@ -218,38 +223,28 @@ void run_automated_warehouse(char **argv)
 
 //function for cetal robot
 void centralControl(){
-    lock_release(&filesys_lock);
+    
     while(1){
     boxes_from_central_control_node = boxes_from_robots;
     int size = sizeof(boxes_from_robots);
-    
-    for(int i=0;i < size;i++){
-        struct messsage_box item;
-        item = boxes_from_central_control_node[i];
-        if (i!=0){
-            for (int j=0 ;j < i;j++ ){
-                struct messsage_box comp;
-                comp = boxes_from_central_control_node[j];
-                if (item.msg.row == comp.msg.row){
-                    item.msg.cmd = 0;
-                    while(1){
-                        //lock_acquire(&filesys_lock);
-                        thread_sleep(500);
-                        //lock_release(&filesys_lock);
-                        comp = boxes_from_central_control_node[j];
-                        if(item.msg.row != comp.msg.row){
-                                item.msg.cmd = 1;
-                        }
-                    }
-                    
-                }
-            }
+    printf("\n<< initial robot >>\n");
+    //unblock_threads();
+    while (true) {
+        struct thread *current_thread = thread_current();
+         //unblock_threads();
+        if (current_thread == NULL) {
+                printf("No thread is currently running. Starting a new thread...\n");
+                unblock_threads();
         }
-        
+        }
     }
+    }
+
     
-    }
-}
+    
+  
+    
+
 
 // function for moving the robot
 void movingRobot(struct robot* _robot){
@@ -262,131 +257,237 @@ void movingRobot(struct robot* _robot){
 
     int mailboxNumber = _robot->idx;
     int direction;
-    printf("Now Thread %d\n", mailboxNumber );
+    printf("Now Thread %d | Target Row : %d | Target Column : %d\n", mailboxNumber, targ_row, targ_col );
+    lock_acquire(&filesys_lock);
+    
 
-    while (_robot->col != targ_col || _robot->row != targ_row){
+    while (true){
+        if (_robot->col == targ_col && _robot->row == targ_row){
+                if (_robot->current_payload == _robot->required_payload){
+                        printf("\n\n=== TASK DONE ===\n\n");
+                        break;
+                }
+        }
+        if (_robot->moving == 0){
+                printf("THREAD BLOCK >> \n");
+                block_thread();
+                thread_yield();
+                unblock_threads();
+        }
+       
         direction = random()%4;
+        printf("\n>>> Now Thread %d\n", mailboxNumber );
         printf("now => %d\n", direction); 
+        //printf("now State : row # %d col # %d\n\n", _robot->row,_robot->col);
+        
         switch(direction){
             case 0: // up
                 if (_robot->row != targ_row || _robot->row > TopRow+1){
                     int curr = _robot->row;
-                    int updated = curr--;
+                    int updated = curr-1;
+                    if (updated > 0 && updated < 5){
                     setMailbox(mailboxNumber, 0, 1, updated, _robot->col,_robot->current_payload, _robot->required_payload);
-                    
+            
+                    printf("now cmd : %d\n",boxes_from_central_control_node[mailboxNumber].msg.cmd);
+                    if (boxes_from_central_control_node[mailboxNumber].msg.cmd == 0){
+                    printf("LOCKED\n");
+                    lock_acquire(&filesys_lock);
+                    while(boxes_from_central_control_node[mailboxNumber].msg.cmd != 1){
+                        cond_wait(&value_updated, &filesys_lock);
+                        }
+                        lock_release(&filesys_lock);}
                     while(1){
-
-                        if (&boxes_from_central_control_node[mailboxNumber].msg == 1){
+                    
+                        if (boxes_from_central_control_node[mailboxNumber].msg.cmd == 1){
+                                printf("into loop\n");
                                 _robot->row = updated;
                                 int now_loc = payload_loc_mapper(updated,_robot->col);
-                                if (now_loc == _robot->required_payload){
-                                setRobot(_robot,_robot->name, mailboxNumber+1, updated,_robot->col, _robot->required_payload, _robot->required_payload);
+                                printf("now State : row # %d col # %d\n\n", _robot->row,_robot->col);
+                                if (now_loc == _robot->required_payload && _robot->current_payload != _robot->required_payload){
+                                        printf("==== GET PAYLOAD ====\n");
+                                        _robot->current_payload = _robot->required_payload;
+                                        _robot->moving=0;
+                                       break;
+                        
                                 }
-                                else{
-                                setRobot(_robot,_robot->name, mailboxNumber+1, updated,_robot->col,  _robot->required_payload, _robot->current_payload);
-                                }
-                                break;
-                        }
-                        else if (&boxes_from_central_control_node[mailboxNumber].msg == 0){
                                 
-                                block_thread();
-                                if(&boxes_from_central_control_node[mailboxNumber].msg == 1){
-                                        
-                                        unblock_threads();
+                                boxes_from_central_control_node[mailboxNumber].msg.cmd = 0;
+                                break;
+                                //block_thread();
+                        }
+                        else if (boxes_from_central_control_node[mailboxNumber].msg.cmd == 0){
+                                
+                                //block_thread();
+                                lock_acquire(&filesys_lock);
+                                while(boxes_from_central_control_node[mailboxNumber].msg.cmd != 1){
+                                        cond_wait(&value_updated, &filesys_lock);
                                 }
+                                printf("unblocked\n");
+                                //unblock_threads();
+                                lock_release(&filesys_lock);
+                                
                         } 
-                    } 
+                    }}
+                    else{
+                        break;
+                    }
                 }
                 break;
             case 1: // down
                 if (_robot->row != targ_row || _robot->row < BottomRow-1){
                     int curr = _robot->row;
-                    int updated = curr++;
+                    int updated = curr+1;
+                    if (updated > 0 && updated < 5){
                     setMailbox(mailboxNumber, 0, 1, updated, _robot->col,_robot->current_payload, _robot->required_payload);
+                    printf("set up\n");
+                    printf("now cmd : %d\n",boxes_from_central_control_node[mailboxNumber].msg.cmd);
+                    if (boxes_from_central_control_node[mailboxNumber].msg.cmd == 0){
+                    printf("LOCKED\n");
+                    lock_acquire(&filesys_lock);
+                    while(boxes_from_central_control_node[mailboxNumber].msg.cmd != 1){
+                        cond_wait(&value_updated, &filesys_lock);
+                        }
+                        lock_release(&filesys_lock);}
                     while(1){
-
-                        if (&boxes_from_central_control_node[mailboxNumber].msg == 1){
+                        
+                        if (boxes_from_central_control_node[mailboxNumber].msg.cmd == 1){
+                                printf("into loop\n");
                                 _robot->row = updated;
                                 int now_loc = payload_loc_mapper(updated,_robot->col);
-                                if (now_loc == _robot->required_payload){
-                                setRobot(_robot, _robot->name,  mailboxNumber+1,updated,_robot->col, _robot->required_payload, _robot->required_payload);
+                                printf("now State : row # %d col # %d\n\n", _robot->row,_robot->col);
+                                if (now_loc == _robot->required_payload && _robot->current_payload != _robot->required_payload){
+                                        printf("==== GET PAYLOAD ====\n");
+                                        _robot->current_payload = _robot->required_payload;
+                                        _robot->moving=0;
+                                        break;
+                        
                                 }
-                                else{
-                                setRobot(_robot, _robot->name,mailboxNumber+1,updated, _robot->col, _robot->required_payload, _robot->current_payload);
-                                }
+                               
+                                
+                                boxes_from_central_control_node[mailboxNumber].msg.cmd = 0;
                                 break;
                         }
-                        else if (&boxes_from_central_control_node[mailboxNumber].msg == 0){
-                                printf("==be blocked==\n");
-                               
-                                block_thread();
-                                if(&boxes_from_central_control_node[mailboxNumber].msg == 1){
-                                        
-                                        unblock_threads();
+                        else if (boxes_from_central_control_node[mailboxNumber].msg.cmd == 0){
+                                //block_thread();
+                                lock_acquire(&filesys_lock);
+                                while(boxes_from_central_control_node[mailboxNumber].msg.cmd != 1){
+                                        cond_wait(&value_updated, &filesys_lock);
                                 }
+                                printf("unblocked\n");
+                                //unblock_threads();
+                                lock_release(&filesys_lock);
+                                
                         } 
-                    } 
+                    } }
+                    else{
+                       break;
+                    }
                     
                 }
                 break;
             case 2: // left
                 if (_robot->col != targ_col || _robot->col > LeftCol+1){
                     int curr = _robot->col;
-                    int updated = curr--;
+                    int updated = curr-1;
+                    if (updated > 0 && updated < 6){
                     setMailbox(mailboxNumber, 0, 1, _robot->row, updated,_robot->current_payload, _robot->required_payload);
+                    printf("set up\n");
+                    printf("now cmd : %d\n",boxes_from_central_control_node[mailboxNumber].msg.cmd);
+                    if (boxes_from_central_control_node[mailboxNumber].msg.cmd == 0){
+                    printf("LOCKED\n");
+                    lock_acquire(&filesys_lock);
+                    while(boxes_from_central_control_node[mailboxNumber].msg.cmd != 1){
+                        cond_wait(&value_updated, &filesys_lock);
+                        }
+                        lock_release(&filesys_lock);}
                     while(1){
-
-                        if (&boxes_from_central_control_node[mailboxNumber].msg == 1){
+                       
+                        if (boxes_from_central_control_node[mailboxNumber].msg.cmd == 1){
+                                printf("into loop\n");
                                 _robot->col = updated;
                                 int now_loc = payload_loc_mapper(_robot->row,updated);
-                                if (now_loc == _robot->required_payload){
-                                setRobot(_robot,_robot->name,  mailboxNumber+1,_robot->row, updated, _robot->required_payload, _robot->required_payload);
+                                printf("now State : row # %d col # %d\n\n", _robot->row,_robot->col);
+                
+                                if (now_loc == _robot->required_payload && _robot->current_payload != _robot->required_payload){
+                                        printf("==== GET PAYLOAD ====\n");
+                                        _robot->current_payload = _robot->required_payload;
+                                        _robot->moving=0;
+                                        break;
                                 }
-                                else{
-                                setRobot(_robot, _robot->name,mailboxNumber+1,_robot->row, updated, _robot->required_payload, _robot->current_payload);
-                                }
+                                
+                              
+                                boxes_from_central_control_node[mailboxNumber].msg.cmd = 0;
                                 break;
                         }
-                        else if (&boxes_from_central_control_node[mailboxNumber].msg == 0){
+                        else if (boxes_from_central_control_node[mailboxNumber].msg.cmd == 0){
                                 printf("==be blocked==\n");
                              
-                                block_thread();
-                                if(&boxes_from_central_control_node[mailboxNumber].msg == 1){
-                                 
-                                        unblock_threads();
+                                //block_thread();
+                                lock_acquire(&filesys_lock);
+                                while(boxes_from_central_control_node[mailboxNumber].msg.cmd != 1){
+                                        cond_wait(&value_updated, &filesys_lock);
                                 }
+                                printf("unblocked\n");
+                                //unblock_threads();
+                                lock_release(&filesys_lock);
+                                
                         } 
+                    }}
+                    else{
+                        break;
                     }
                 }
                 break;
             case 3: // right
                 if (_robot->col != targ_col || _robot->col < RightCol-1){
                     int curr = _robot->col;
-                    int updated = curr++;
+                    int updated = curr+1;
+                    if (updated > 0 && updated < 6){
                     setMailbox(mailboxNumber, 0, 1, _robot->row, updated,_robot->current_payload, _robot->required_payload);
+                    printf("set up\n");
+                    printf("now cmd : %d\n",boxes_from_central_control_node[mailboxNumber].msg.cmd);
+                    if (boxes_from_central_control_node[mailboxNumber].msg.cmd == 0){
+                    printf("LOCKED\n");
+                    lock_acquire(&filesys_lock);
+                    while(boxes_from_central_control_node[mailboxNumber].msg.cmd != 1){
+                        cond_wait(&value_updated, &filesys_lock);
+                        }
+                        lock_release(&filesys_lock);}
                     while(1){
-
-                        if (&boxes_from_central_control_node[mailboxNumber].msg == 1){
+                        
+                        if (boxes_from_central_control_node[mailboxNumber].msg.cmd == 1){
+                                printf("into loop\n");
                                 _robot->col = updated;
                                 int now_loc = payload_loc_mapper(_robot->row,updated);
-                                if (now_loc == _robot->required_payload){
-                                setRobot(_robot,_robot->name,  mailboxNumber+1,_robot->row, updated, _robot->required_payload, _robot->required_payload);
+                                printf("now State : row # %d col # %d\n\n", _robot->row,_robot->col);
+                                if (now_loc == _robot->required_payload && _robot->current_payload != _robot->required_payload){
+                                        printf("==== GET PAYLOAD ====\n");
+                                        _robot->current_payload = _robot->required_payload;
+                                        _robot->moving=0;
+                                        break;
+                        
                                 }
-                                else{
-                                setRobot(_robot, _robot->name,mailboxNumber+1,_robot->row, updated, _robot->required_payload, _robot->current_payload);
-                                }
+                                
+                                boxes_from_central_control_node[mailboxNumber].msg.cmd = 0;
+                                
                                 break;
                         }
-                        else if (&boxes_from_central_control_node[mailboxNumber].msg == 0){
+                        else if (boxes_from_central_control_node[mailboxNumber].msg.cmd == 0){
                                 printf("==be blocked==\n");
                                
-                                block_thread();
-                                if(&boxes_from_central_control_node[mailboxNumber].msg == 1){
-                                      
-                                        unblock_threads();
+                               //block_thread();
+                                lock_acquire(&filesys_lock);
+                                while(boxes_from_central_control_node[mailboxNumber].msg.cmd != 1){
+                                        cond_wait(&value_updated, &filesys_lock);
                                 }
-                        } 
+                                printf("unblocked\n");
+                                //unblock_threads();
+                                lock_release(&filesys_lock);
+                                
                     }
+                }}
+                else{
+                        break;
                 }
                 break;
 
@@ -394,4 +495,4 @@ void movingRobot(struct robot* _robot){
     }
 
 
-}
+}}

@@ -5,8 +5,8 @@
 #include "threads/synch.h"
 #include "threads/thread.h"
 
-extern struct list blocked_threads;
 
+extern struct list* blocked_threads;
 void block_thread();
 
 void unblock_threads();
